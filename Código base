@@ -426,3 +426,207 @@ prompt_task_input (void)
   }
   return result;
 }
+
+char const*
+task_type_str(task_type_t type)
+{
+  switch (type)
+  {
+    case OPERATIVE:  return "Tarea Operativa";
+    case APPROVAL:   return "Tarea de Aprobación";
+    case CONTRACT:   return "Firma de Contrato";
+    case MANAGEMENT: return "Tarea de Gestión";
+    case CHANGE:     return "Cambios";
+    default:         return "Tarea inválida";
+  }
+}
+
+/*
+ * helper function to close the main menu loop
+ */
+static inline void
+main_quit (void)
+{
+  main_close = true;
+}
+
+/*
+ * helper function to close the task input menu loop
+ */
+static inline void
+input_task_quit (void)
+{
+  task_input_close = true;
+}
+
+/*
+ * helper function to input a description
+ */
+static inline void
+description_input_quit (void)
+{
+  description_input_close = true;
+}
+
+/*
+ * task input prompt function
+ * sets variables to use the meta_menu function
+ */
+void
+input_task (void)
+{
+  meta_menu (task_input_items, task_input_items_len, &task_input_close);
+}
+
+/*
+ * generic prompt function
+ * @param items: pointer to global variable with messages and actions
+ * @param items_len: amount of items in the items structure
+ */
+static inline void
+meta_prompt (menu_item_t* items, int items_len)
+{
+  printf ("options:\n");
+  for (int i = 0; i < items_len; ++i)
+  {
+    printf ("%d: %s\n", i + 1, items[i].msg);
+  }
+  printf ("\nyour selection: ");
+}
+
+/*
+ * generic menu function
+ * @param items: pointer to global variable with messages and actions
+ * @param items_len: amount of items in the items structure
+ * @param loop_close_cond: boolean for controling a menu's close condition
+ */
+void
+meta_menu (menu_item_t* items, int items_len, bool *loop_close_cond)
+{
+  meta_prompt (items, items_len);
+  while (!*loop_close_cond && fgets( buffer, sizeof(buffer), stdin))
+  {
+    char *newline = strchr( buffer, '\n' );
+    if ( newline == NULL )
+    {
+      /* input too big, throw away invalid input, show message to user */
+      for (int c = getchar(); c != EOF && c != '\n'; c = getchar())
+        ;
+      printf ("please input a single number\n");
+    }
+    else
+    {
+      /* IMPORTANT: careful here, pointer arithmetic is error-prone */
+      int len = newline - buffer;
+      if (len != 1)
+      {
+        printf ("please input a single number\n");
+      }
+      else
+      {
+        int input_value = buffer[0] - '0';
+        int item_index = input_value - 1;
+        memset (buffer, 0, sizeof(buffer));
+        if (item_index >= items_len)
+        {
+          printf ("\ninvalid option, try again\n\n");
+        }
+        else
+        {
+          items[item_index].action();
+        }
+      }
+    }
+    if (!*loop_close_cond)
+    {
+      meta_prompt (items, items_len);
+    }
+  }
+  *loop_close_cond = false;
+}
+
+/*****************************************************************************/
+/* main function definition */
+/*****************************************************************************/
+int
+main (void)
+{
+
+  {
+    printf ("\ntest for populating a list\n");
+    {
+      test_populate_list (&tasks);
+      print_list (&tasks);
+      clear_list (&tasks);
+    }
+    printf ("end of test for populating a list\n");
+  }
+
+  {
+    printf ("\ntest for creating a file\n");
+    {
+      test_populate_list (&tasks);
+      /* write here */
+      write_list_to_file (&tasks, "test.txt");
+      clear_list (&tasks);
+    }
+    printf ("end test for creating a file\n");
+  }
+
+  /* read here */
+  {
+    printf ("\ntest for reading a file\n");
+    {
+      read_list_from_file (&tasks, "test.txt");
+      print_list (&tasks);
+      clear_list (&tasks);
+    }
+    printf ("end test for reading a file\n");
+  }
+
+/*   { */
+/*     data_t d; */
+/*     d.id = 7; */
+/*     print_data (d); */
+/*     desc_t thing = {"hola"}; */
+/*     d.data = thing; */
+/*     print_data (d); */
+/*   } */
+
+/*   { */
+/*     desc_t d = {"a"}; */
+/*     printf ("here 1\n"); */
+/*     printf ("d.data: %s\n", d.data); */
+/*     printf ("here 2\n"); */
+/*     d = prompt_task_input (); */
+/*     printf ("here 3\n"); */
+/*     printf ("d.data: %s\n", d.data); */
+/*     printf ("here 4\n"); */
+/*   } */
+
+  {
+    printf ("\ntest for interactively creating tasks\n");
+    {
+      task_t t = prompt_task_input ();
+      print_task (t);
+      push (&tasks, t);
+      write_list_to_file (&tasks, "tasks.txt");
+      clear_list (&tasks);
+    }
+    printf ("end test for interactively creating tasks\n");
+  }
+
+  {
+    printf ("\ntest for reading created tasks file\n");
+    {
+      read_list_from_file (&tasks, "tasks.txt");
+      print_list (&tasks);
+      clear_list (&tasks);
+    }
+    printf ("end test for reading created tasks file\n");
+  }
+
+  meta_menu (main_items, main_items_len, &main_close);
+
+  return EXIT_SUCCESS;
+}
