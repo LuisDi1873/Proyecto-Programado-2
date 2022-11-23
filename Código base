@@ -501,3 +501,90 @@ interactive_edge_list (void);
 /* function to interactively input an edge */
 void
 interactive_edge_input (void);
+/*****************************************************************************/
+/* global variable declarations */
+/*****************************************************************************/
+
+static bool main_close = false;
+static bool task_input_close = false;
+
+static menu_item_t main_items[] =
+{
+  {
+    .msg = "input a task",
+    .action = interactive_task_input
+  },
+  {
+    .msg = "edit a task",
+    .action = interactive_task_edit
+  },
+  {
+    .msg = "show all tasks",
+    .action = interactive_task_list
+  },
+  {
+    .msg = "input a document",
+    .action = interactive_document_input
+  },
+  {
+    .msg = "edit a document",
+    .action = interactive_document_edit
+  },
+  {
+    .msg = "remove a document",
+    .action = interactive_document_remove
+  },
+  {
+    .msg = "show all documents",
+    .action = interactive_document_list
+  },
+  {
+    .msg = "input a resource",
+    .action = interactive_resource_input
+  },
+  {
+    .msg = "remove a resource",
+    .action = interactive_resource_remove
+  },
+  {
+    .msg = "show all resources",
+    .action = interactive_resource_list
+  },
+  {
+    .msg = "input task edge",
+    .action = interactive_edge_input
+  },
+  {
+    .msg = "show task edges",
+    .action = interactive_edge_list
+  },
+  {
+    .msg = "show recommended task route",
+    .action = interactive_task_edge_route_print
+  },
+  {
+    .msg = "show MST",
+    .action = interactive_task_mst_print
+  },
+  {
+    .msg = "quit",
+    .action = main_quit
+  }
+};
+static int main_items_len = array_size (main_items);
+
+global_variable task_list_t tasks = {
+  .head = NULL,
+  .tail = NULL,
+  .size = 0
+};
+
+global_variable res_list_t resources = {
+  .head = NULL,
+  .tail = NULL
+};
+
+global_variable edge_list_t edges = {
+  .head = NULL,
+  .tail = NULL
+};
