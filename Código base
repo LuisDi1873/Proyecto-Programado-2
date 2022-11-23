@@ -222,3 +222,282 @@ typedef struct
   int count; /* same count for parents  and shortest_distances */
 } dijkstra_solution_t;
 
+
+/*****************************************************************************/
+/* function declarations */
+/*****************************************************************************/
+
+/* function fo check whether an edge has been inserted */
+bool
+in_edge_list (edge_t* e, edge_list_t* list);
+
+/* convert task representation for persistence */
+persist_task_t
+from_task (task_t* t);
+
+/* function to load a task's documents from persistent storage */
+void
+load_task_docs (task_t* t);
+
+/* convert task representation for runtime */
+task_t
+from_persist_task (persist_task_t* t);
+
+/* load persistent data if present */
+void
+load_persistent_data (void);
+
+/* function to save a task's document to persistent storage */
+void
+store_task_docs (int task_id, tnode_t* t, FILE* task_docs_file);
+
+/* function to save a task's document */
+void
+persist_task_docs (task_t* t);
+
+/* persist data */
+void
+persist_data (void);
+
+/* function to print a tree node */
+void
+print_tnode (tnode_t* n);
+
+/* function to print a document's data */
+void
+print_doc (doc_t* d);
+
+/* auxiliary function to clear heap memory from BST */
+void
+clear_docs_aux (tnode_t* t);
+
+/* function to clear heap memory from BST */
+void
+clear_docs (tnode_t* root);
+
+/* auxiliary function to free heap-allocated memory in the list of tasks */
+void
+clear_task_list (task_list_t* list);
+
+/* auxiliary function to free heap-allocated memory in the list of resources */
+void
+clear_res_list (res_list_t* list);
+
+/* auxiliary function to free heap-allocated memory in the list of edges */
+void
+clear_edge_list (edge_list_t* list);
+
+/* auxiliary function to free heap-allocated memory */
+void
+clear_lists (void);
+
+/* function to insert a task in the list of tasks */
+void
+task_list_push (task_list_t* list, task_t t);
+
+/* function to check if task has been visited in queue */
+bool
+has_been_visited (task_t const* const t, task_list_t* queue);
+
+/* function to insert a resource in the list of resources */
+void
+res_list_push (res_list_t* list, resource_t r);
+
+/* function to insert an edge in the list of edges */
+void
+edge_list_push (edge_list_t* list, edge_t e);
+
+/* function to print a task's data */
+void
+meta_print_task (task_t *t, char *header, char *indent);
+
+/* function to print a resource's data */
+void
+print_resource (resource_t* r);
+
+/* function to print an edge's data */
+void
+print_edge (edge_t* e);
+
+/* function to print task route through edges */
+void
+interactive_task_edge_route_print (void);
+
+/* function to print task minimum spanning tree */
+void
+interactive_task_mst_print (void);
+
+/* function to print a task's data, using '*' and '|' has header */
+void
+print_task (task_t *t);
+
+/* auxiliary function to update type of every document in a task */
+void
+update_task_docs_aux (tnode_t* t, int type);
+
+/* function to update type of every document in a task */
+void
+update_task_docs (task_t* t);
+
+/* function to print all docs in a BST */
+void
+print_docs_details (tnode_t* t);
+
+/* function to populate list with tasks */
+void
+test_populate_list (task_list_t* list);
+
+/* function to print the last task with blank indent */
+void
+print_last_task (task_t *t);
+
+/* function to interactively input a person in charge */
+incharge_t
+prompt_task_incharge (void);
+
+/* function to get a task node from a task reference */
+task_node_t*
+get_task_node (task_t* t, task_list_t* list);
+
+/* function to get a pointer to a task_t structure */
+task_t*
+get_task_ref (task_list_t* list);
+
+/* function to interactively input a document's data */
+doc_t
+input_doc (task_t* task_ref);
+
+/* function to show all documents in a task */
+void
+show_docs (tnode_t* t);
+
+/* function to input document into task */
+void
+input_task_doc (task_t* t, doc_t* d);
+
+/* function to interactively input of a document's data */
+void
+interactive_document_input (void);
+
+/* function to start showing all documents for a task */
+void
+interactive_document_list (void);
+
+/* function to make a prompt from a menu_items_t structure */
+void
+meta_menu (menu_item_t *items, int items_len, bool *loop_close_cond);
+
+/* function to input a task's data */
+void
+interactive_task_input (void);
+
+/* helper function to end the main prompt */
+void
+main_quit (void);
+
+/* function to get a task type's string representation */
+char *
+task_type_str (task_type_t type);
+
+/* declaration of funtion to show a prompt in the command line */
+void
+meta_prompt (menu_item_t *items, int items_len);
+
+/* function to quit the task input prompt */
+void
+input_task_quit (void);
+
+/* function to get a task_t from user input */
+task_t
+prompt_task_input (void);
+
+/* function to list tasks in project */
+void
+interactive_task_list (void);
+
+/* function to edit a task's data, except its ID */
+void
+interactive_task_edit (void);
+
+/* function to print list */
+void
+print_list (task_list_t* list);
+
+/* function for user to interactively input an integer */
+int
+prompt_input_int (void);
+
+/* function to interactively input a task's data (minus the ID) */
+task_t
+prompt_task_data (void);
+
+/* function to input a task's data */
+void
+meta_interactive_task_input (void);
+
+/* function to input a document's route */
+route_t
+prompt_input_route (void);
+
+/* function to input a [string] description */
+desc_t
+prompt_input_desc (char const *msg_template);
+
+name_t
+prompt_input_name (char const *msg_template);
+
+/* function to print documents given a task */
+void
+print_docs (tnode_t* t, int space);
+
+/* function to edit a document's data */
+void
+interactive_document_edit (void);
+
+/* function to remove a binary tree node */
+void
+remove_bst_node (tnode_t* mainroot, tnode_t* root, int id);
+
+/* function to remove a task's document */
+void
+interactive_document_remove (void);
+
+/* function to find a document in a binary tree */
+tnode_t*
+find_document (int id, tnode_t* root);
+
+/* function to find the biggest node in a subtree */
+tnode_t*
+find_biggest (tnode_t* root);
+
+/* function to find the parent of a node in a binary search tree */
+tnode_t*
+find_parent (tnode_t* root, tnode_t* node);
+
+/* function to find the parent of a node in a binary search tree */
+tnode_t*
+find_parent_from_id (tnode_t* root, int id);
+
+/* function to get a document's data */
+doc_t
+prompt_doc_data (void);
+
+/* function to interactively input a resource's data */
+void
+interactive_resource_input (void);
+
+/* function to interactively remove a resource's data */
+void
+interactive_resource_remove (void);
+
+/* function to interactively list all resources' data */
+void
+interactive_resource_list (void);
+
+/* function to interactively list all resources' data */
+void
+interactive_edge_list (void);
+
+/* function to interactively input an edge */
+void
+interactive_edge_input (void);
