@@ -1,21 +1,114 @@
-#include <stdio.h>   
-#include <stdlib.h>  
-#include <string.h>
+/*
+ * This program requires an ISO C99 standard compliant compiler
+ * it has been tested with GCC to compile into correct binaries
+ * with the command
+ *
+ *   gcc -std=c99 -Wall -Wextra -pedantic -Werror -o aptec aptec.c
+ *
+ * with GCC 12.2.0
+ */
 
-#define array_size(a) (sizeof(a)/sizeof(*a))
-#define BUFFER_SIZE (4)
+/* include declarations */
+#include <assert.h> /* assert () */
+#include <limits.h> /* INT_MAX */
+#include <stdbool.h> /* bool */
+#include <stddef.h>  /* NULL */
+#include <stdio.h>   /* printf(), fgets() */
+#include <stdlib.h>  /* EXIT_SUCCESS */
+#include <string.h>  /* memcpy(), memset() */
+
+/*****************************************************************************/
+/* macro declarations */
+/*****************************************************************************/
+#define array_size(a) (sizeof (a) / sizeof (*a))
+#define UNUSED(x) (void)x
+
+#define INTERNAL static
+#define global_variable static
+
+#define BUFFER_SIZE (8)
 #define DESCRIPTION_BUFFER_SIZE (32)
+#define NAME_BUFFER_SIZE (32)
+#define ROUTE_BUFFER_SIZE (255)
+#define DOC_PERSISTENCE_BUFFER_SIZE (512)
 #define IN_CHARGE_BUFFER_SIZE (32)
 #define ID_BUFFER_SIZE (11)
+#define TNODE_SPACING (11)
 
-typedef void(*action_t)(void);
+/* ALL IDs must be positive integers */
+#define INVALID_ID (0)
 
+/* IMPORTANT: braces around the 0 */
+#define BUF_INITIALIZER {0}
+
+/* IMPORTANT: braces around the 0 */
+#define DOC_T_INITIALIZER {0}
+#define TASK_T_INITIALIZER {0}
+#define PERSIST_TASK_T_INITIALIZER {0}
+#define DESC_T_INITIALIZER {0}
+#define ROUTE_T_INITIALIZER {0}
+#define INCHARGE_T_INITIALIZER {0}
+#define RESOURCE_T_INITIALIZER {0}
+
+#define TASKS_PERSISTENCE_FILE "tasks.txt"
+#define RESOURCES_PERSISTENCE_FILE "resources.txt"
+#define EDGES_PERSISTENCE_FILE "edges.txt"
+
+/*****************************************************************************/
+/* type declarations */
+/*****************************************************************************/
+/* function type for menu prompt */
+typedef void (*action_t) (void);
+
+/* structure to hold menu item message and action pointer */
 typedef struct
 {
-  char* msg;
+  char *msg;
   action_t action;
 } menu_item_t;
 
+/* structure type to easily assign strings */
+typedef struct
+{
+  char data[DESCRIPTION_BUFFER_SIZE];
+} desc_t;
+
+/* structure type to easily assign strings */
+typedef desc_t name_t;
+
+/* structure type to easily assign strings */
+typedef struct
+{
+  char data[ROUTE_BUFFER_SIZE];
+} route_t;
+
+/* structure type to easily assign strings */
+typedef struct
+{
+  char data[IN_CHARGE_BUFFER_SIZE];
+} incharge_t;
+
+typedef int doc_type_t;
+/* structure to hold document data */
+typedef struct
+{
+  int id;
+  route_t route;
+  desc_t description;
+  doc_type_t type;
+} doc_t;
+
+/* forward-declare a tree node structure */
+typedef struct tnode tnode_t;
+/* structure to hold task data */
+struct tnode
+{
+  doc_t doc;
+  tnode_t *l;
+  tnode_t *r;
+};
+
+/* enumeration of task types, and a debugging invalid type */
 typedef enum
 {
   OPERATIVE,
@@ -26,607 +119,106 @@ typedef enum
   INVALID_TASK
 } task_type_t;
 
+/* structure to hold task data */
 typedef struct
 {
-  char data[DESCRIPTION_BUFFER_SIZE];
-} desc_t;
-
-typedef struct
-{
-  char data[IN_CHARGE_BUFFER_SIZE];
-} incharge_t;
-
-typedef struct
-{
-  int         id;
-  /* char*       description; */
-  desc_t      description;
+  int id;
+  desc_t description;
   task_type_t type;
-  int         effort;
-  int         time;
-  /* char*       in_charge; */
-  incharge_t  in_charge;
+  int effort;
+  int time;
+  incharge_t in_charge;
+  tnode_t docs;
 } task_t;
 
-typedef enum
-{
-  TXT,
-  IMG
-} doc_type_t;
-
 typedef struct
 {
-  int        id;
-  char*      route;
-  char*      description;
-  doc_type_t type;
-} doc_t;
+  int id;
+  desc_t description;
+  task_type_t type;
+  int effort;
+  int time;
+  incharge_t in_charge;
+  doc_t doc;
+} persist_task_t;
 
-typedef enum
-{
-  INVALID_RESOURCE
-} res_type_t;
+/* same as task types */
+typedef task_type_t res_type_t;
 
+/* structure to hold resource data */
 typedef struct
 {
-  int        id;
-  char*      name;
+  int id;
+  name_t name;
   res_type_t type;
-  int        capacity;
-  int        available_amount;
-  char*      in_charge;
+  int capacity;
+  int available_amount;
+  incharge_t in_charge;
 } resource_t;
 
-typedef struct node node_t;
-
-struct node
+/* forward-declare a task_node_t structure */
+typedef struct task_node task_node_t;
+/* structure to hold task data */
+struct task_node
 {
   task_t task;
-  node_t* prev;
-  node_t* next;
+  task_node_t *prev;
+  task_node_t *next;
 };
+
+/* convenience structure to hold list references */
+typedef struct
+{
+  task_node_t *head;
+  task_node_t *tail;
+  size_t size;
+} task_list_t;
+
+/* forward-declare a task_node_t structure */
+typedef struct res_node res_node_t;
+/* structure to hold task data */
+struct res_node
+{
+  resource_t resource;
+  res_node_t *prev;
+  res_node_t *next;
+};
+
+/* convenience structure to hold resource references */
+typedef struct
+{
+  res_node_t *head;
+  res_node_t *tail;
+} res_list_t;
+
+/* structure to hold adjacency information */
+typedef struct
+{
+  int src;
+  int dst;
+  int cost;
+} edge_t;
+
+/* structure to hold adjacency information node */
+typedef struct edge_node edge_node_t;
+struct edge_node
+{
+  edge_t edge;
+  edge_node_t* prev;
+  edge_node_t* next;
+};
+
+/* convenience structure to hold adjacency information list */
+typedef struct
+{
+  edge_node_t* head;
+  edge_node_t* tail;
+} edge_list_t;
 
 typedef struct
 {
-  node_t* head;
-  node_t* tail;
-} list_t;
-void
-meta_menu (menu_item_t* items, int items_len, bool *loop_close_cond);
+  int* parents;
+  int* shortest_distances;
+  int count; /* same count for parents  and shortest_distances */
+} dijkstra_solution_t;
 
-void
-input_task (void);
-
-static inline void
-main_quit (void);
-
-char const*
-task_type_str(task_type_t type);
-
-static inline void
-meta_prompt (menu_item_t* items, int items_len);
-
-static inline void
-input_task_quit (void);
-
-task_t
-prompt_task_input (void);
-
-/* global variable declarations */
-static bool main_close = false;
-static bool task_input_close = false;
-static bool description_input_close = false;
-
-static menu_item_t main_items[] = {
-  {
-    .msg = "input task",
-    .action = input_task
-  },
-  {
-    .msg = "quit",
-    .action = main_quit
-  }
-};
-int main_items_len = array_size(main_items);
-
-list_t tasks = {
-  .head = NULL,
-  .tail = NULL
-};
-
-void
-clear_list (list_t* list)
-{
-  node_t* head = list->head;
-  node_t* it = head;
-  node_t* tmp;
-  /* int iterator = 0; */
-  while (it != NULL)
-  {
-    tmp = it->next;
-    free (it);
-    /* printf ("%s\n", (char*)&it->task.description); */
-    it = tmp;
-    /* iterator++; */
-  }
-  /* printf ("iterator: %d clear_list\n", iterator); */
-  list->head = NULL;
-  list->tail = NULL;
-}
-
-void
-push (list_t* list, task_t t)
-{
-  node_t* new = (node_t*)malloc (sizeof(*new));
-  new->task = t;
-  new->next = NULL;
-  new->prev = NULL;
-  if (list->tail == NULL)
-  {
-    list->head = new;
-    list->tail = new;
-  }
-  else
-  {
-    list->tail->next = new;
-    new->prev = list->tail;
-    list->tail = new;
-  }
-}
-
-static inline void
-closed_task_input (void)
-{
-  task_t t = prompt_task_input ();
-  push (&tasks, t);
-}
-
-static menu_item_t task_input_items[] = {
-  {
-    .msg = "input task",
-    .action = closed_task_input
-  },
-  {
-    .msg = "quit",
-    .action = input_task_quit
-  }
-};
-static int task_input_items_len = array_size(task_input_items);
-
-static char buffer[BUFFER_SIZE] = { 0 };
-
-
-
-typedef struct data_t data_t;
-
-/* typedef char desc_t[20]; */
-
-struct data_t
-{
-  int     id;
-  desc_t data;
-};
-
-void
-print_data (data_t d)
-{
-  printf ("{%02d, %s}\n", d.id, (char*)&d.data);
-}
-
-void
-write_list_to_file (list_t* list, char* file_name)
-{
-  FILE* f = fopen (file_name, "w");
-  if (f != NULL)
-  {
-    {
-      node_t* head = list->head;
-      node_t* it = head;
-      node_t* tmp;
-      /* int iterator = 0; */
-      while (it != NULL)
-      {
-        tmp = it->next;
-        fwrite (&it->task, sizeof (it->task), 1, f);
-        it = tmp;
-        /* iterator++; */
-      }
-      /* printf ("iterator: %d fwrite\n", iterator); */
-    }
-    fclose (f);
-  }
-}
-
-void
-test_populate_list (list_t* list)
-{
-  for (int i = 0; i < 0x4; ++i)
-  {
-    task_t t = {
-      .id          = i,
-      .description = {""},
-      .type        = INVALID_TASK - 1 - i,
-      .effort      = 2,
-      .time        = 35,
-      .in_charge   = {""}
-    };
-
-    /* task_t t; */
-    /* t.id          = i; */
-    /* t.description = {""}; */
-    /* t.type        = INVALID_TASK - i; */
-    /* t.effort      = 2; */
-    /* t.time        = 35; */
-    /* t.in_charge   = {""}; */
-
-    /* d.id = i + 1; */
-    /* int limit = (int)(sizeof (desc_t) - 1); */
-    /* /1* printf ("limit: %d\n", limit); *1/ */
-    /* for (int j = 0; j < limit; ++j) */
-    /* { */
-    /*   ((char*)&d.data)[j] = 9 - i + '0'; */
-    /* } */
-    push (list, t);
-  }
-}
-
-void
-print_task(task_t t)
-{
-  printf ("{");
-  printf (" id: %d, ", t.id);
-  printf (" description: \"%s\", ", t.description.data);
-  printf (" type: %s, ", task_type_str(t.type));
-  printf (" effort: %d, ", t.effort);
-  printf (" time: %d, ", t.time);
-  printf (" in charge: \"%s\"", t.in_charge.data);
-  printf ("}\n");
-}
-
-void
-print_list (list_t* list)
-{
-  node_t* head = list->head;
-  node_t* it = head;
-  node_t* tmp;
-  /* int iterator = 0; */
-  while (it != NULL)
-  {
-    tmp = it->next;
-    print_task (it->task);
-    /* printf ("%s\n", (char*)&it->task.description); */
-    it = tmp;
-    /* iterator++; */
-  }
-  /* printf ("iterator: %d print_list\n", iterator); */
-}
-
-void
-read_list_from_file (list_t* list, char* file_name)
-{
-  FILE* f = fopen (file_name, "r");
-  if (f != NULL)
-  {
-    task_t t;
-    /* data_t d; */
-    /* int iterator = 0; */
-    size_t bytes_read = 0;
-    bytes_read = fread (&t, sizeof(t), 1, f);
-    while (bytes_read > 0 && !feof (f))
-    {
-      push (list, t);
-      bytes_read = fread (&t, sizeof(t), 1, f);
-      /* iterator++; */
-    }
-    /* printf ("iterator: %d do while\n", iterator); */
-    fclose (f);
-  }
-}
-
-int
-prompt_task_int (void)
-{
-  int result = -1;
-  char int_buf[ID_BUFFER_SIZE] = {0};
-  printf ("input integer (must be under %lu digits): ", sizeof(int_buf));
-  bool loop_cond = true;
-  while (loop_cond && fgets( int_buf, sizeof(int_buf), stdin))
-  {
-    char *newline = strchr( int_buf, '\n' );
-    if ( newline == NULL )
-    {
-      /* input too big, throw away invalid input, show message to user */
-      for (int c = getchar(); c != EOF && c != '\n'; c = getchar())
-        ;
-      printf ("input integer (must be under %lu digits): ", sizeof(int_buf));
-    }
-    else
-    {
-      /* int len = newline - int_buf; */
-      /* printf ("len: %d\n", len); */
-      result = atoi (int_buf);
-      /* memcpy (result.data, int_buf, len); */
-      if (result > 0)
-      {
-        loop_cond = false;
-      }
-    }
-  }
-  return result;
-}
-
-desc_t
-prompt_task_desc (void)
-{
-  desc_t result = {{0}};
-  char desc_buffer[sizeof(result)+1] = {0};
-  printf ("description (must be under %lu characters): ", sizeof(result));
-  bool loop_cond = true;
-  while (loop_cond && fgets( desc_buffer, sizeof(desc_buffer), stdin))
-  {
-    char *newline = strchr( desc_buffer, '\n' );
-    if ( newline == NULL )
-    {
-      /* input too big, throw away invalid input, show message to user */
-      for (int c = getchar(); c != EOF && c != '\n'; c = getchar())
-        ;
-      printf ("description (must be under %lu characters): ", sizeof(result));
-    }
-    else
-    {
-      int len = newline - desc_buffer;
-      /* printf ("len: %d\n", len); */
-      memcpy (result.data, desc_buffer, len);
-      loop_cond = false;
-    }
-  }
-  return result;
-}
-
-task_t
-prompt_task_input (void)
-{
-  task_t result = { 0 };
-  {
-    printf ("please answer each prompt to fill task data\n");
-    result.id = prompt_task_int ();
-    /* TODO: check if ID is in use */
-    result.description = prompt_task_desc ();
-
-    {
-      printf ("input task type:\n");
-      for (int i = 0; i < INVALID_TASK; ++i)
-      {
-        printf ("%d: %s\n", i + 1, task_type_str (i));
-      }
-      /* printf ("\nyour selection: "); */
-      int type = -1;
-      while (true)
-      {
-        type = prompt_task_int ();
-        if (type < 0 && type >= INVALID_TASK)
-        {
-          continue;
-        }
-        break;
-      }
-      /* printf ("\ntype: %d\n", type); */
-      result.type = type - 1;
-    }
-    {
-      printf ("effort, ");
-      int effort = prompt_task_int ();
-      result.effort = effort;
-    }
-    {
-      printf ("time, ");
-      int time = prompt_task_int ();
-      result.time = time;
-    }
-  }
-  return result;
-}
-
-char const*
-task_type_str(task_type_t type)
-{
-  switch (type)
-  {
-    case OPERATIVE:  return "Tarea Operativa";
-    case APPROVAL:   return "Tarea de Aprobación";
-    case CONTRACT:   return "Firma de Contrato";
-    case MANAGEMENT: return "Tarea de Gestión";
-    case CHANGE:     return "Cambios";
-    default:         return "Tarea inválida";
-  }
-}
-
-/*
- * helper function to close the main menu loop
- */
-static inline void
-main_quit (void)
-{
-  main_close = true;
-}
-
-/*
- * helper function to close the task input menu loop
- */
-static inline void
-input_task_quit (void)
-{
-  task_input_close = true;
-}
-
-/*
- * helper function to input a description
- */
-static inline void
-description_input_quit (void)
-{
-  description_input_close = true;
-}
-
-/*
- * task input prompt function
- * sets variables to use the meta_menu function
- */
-void
-input_task (void)
-{
-  meta_menu (task_input_items, task_input_items_len, &task_input_close);
-}
-
-/*
- * generic prompt function
- * @param items: pointer to global variable with messages and actions
- * @param items_len: amount of items in the items structure
- */
-static inline void
-meta_prompt (menu_item_t* items, int items_len)
-{
-  printf ("options:\n");
-  for (int i = 0; i < items_len; ++i)
-  {
-    printf ("%d: %s\n", i + 1, items[i].msg);
-  }
-  printf ("\nyour selection: ");
-}
-
-/*
- * generic menu function
- * @param items: pointer to global variable with messages and actions
- * @param items_len: amount of items in the items structure
- * @param loop_close_cond: boolean for controling a menu's close condition
- */
-void
-meta_menu (menu_item_t* items, int items_len, bool *loop_close_cond)
-{
-  meta_prompt (items, items_len);
-  while (!*loop_close_cond && fgets( buffer, sizeof(buffer), stdin))
-  {
-    char *newline = strchr( buffer, '\n' );
-    if ( newline == NULL )
-    {
-      /* input too big, throw away invalid input, show message to user */
-      for (int c = getchar(); c != EOF && c != '\n'; c = getchar())
-        ;
-      printf ("please input a single number\n");
-    }
-    else
-    {
-      /* IMPORTANT: careful here, pointer arithmetic is error-prone */
-      int len = newline - buffer;
-      if (len != 1)
-      {
-        printf ("please input a single number\n");
-      }
-      else
-      {
-        int input_value = buffer[0] - '0';
-        int item_index = input_value - 1;
-        memset (buffer, 0, sizeof(buffer));
-        if (item_index >= items_len)
-        {
-          printf ("\ninvalid option, try again\n\n");
-        }
-        else
-        {
-          items[item_index].action();
-        }
-      }
-    }
-    if (!*loop_close_cond)
-    {
-      meta_prompt (items, items_len);
-    }
-  }
-  *loop_close_cond = false;
-}
-
-/*****************************************************************************/
-/* main function definition */
-/*****************************************************************************/
-int
-main (void)
-{
-
-  {
-    printf ("\ntest for populating a list\n");
-    {
-      test_populate_list (&tasks);
-      print_list (&tasks);
-      clear_list (&tasks);
-    }
-    printf ("end of test for populating a list\n");
-  }
-
-  {
-    printf ("\ntest for creating a file\n");
-    {
-      test_populate_list (&tasks);
-      /* write here */
-      write_list_to_file (&tasks, "test.txt");
-      clear_list (&tasks);
-    }
-    printf ("end test for creating a file\n");
-  }
-
-  /* read here */
-  {
-    printf ("\ntest for reading a file\n");
-    {
-      read_list_from_file (&tasks, "test.txt");
-      print_list (&tasks);
-      clear_list (&tasks);
-    }
-    printf ("end test for reading a file\n");
-  }
-
-/*   { */
-/*     data_t d; */
-/*     d.id = 7; */
-/*     print_data (d); */
-/*     desc_t thing = {"hola"}; */
-/*     d.data = thing; */
-/*     print_data (d); */
-/*   } */
-
-/*   { */
-/*     desc_t d = {"a"}; */
-/*     printf ("here 1\n"); */
-/*     printf ("d.data: %s\n", d.data); */
-/*     printf ("here 2\n"); */
-/*     d = prompt_task_input (); */
-/*     printf ("here 3\n"); */
-/*     printf ("d.data: %s\n", d.data); */
-/*     printf ("here 4\n"); */
-/*   } */
-
-  {
-    printf ("\ntest for interactively creating tasks\n");
-    {
-      task_t t = prompt_task_input ();
-      print_task (t);
-      push (&tasks, t);
-      write_list_to_file (&tasks, "tasks.txt");
-      clear_list (&tasks);
-    }
-    printf ("end test for interactively creating tasks\n");
-  }
-
-  {
-    printf ("\ntest for reading created tasks file\n");
-    {
-      read_list_from_file (&tasks, "tasks.txt");
-      print_list (&tasks);
-      clear_list (&tasks);
-    }
-    printf ("end test for reading created tasks file\n");
-  }
-
-  meta_menu (main_items, main_items_len, &main_close);
-
-  return EXIT_SUCCESS;
-}
