@@ -2096,3 +2096,143 @@ doc_t prompt_doc_data (void)
   }
   return result;
 }
+
+// function to insert a resource in the list of resources
+void interactive_resource_input (void)
+{
+  resource_t r = RESOURCE_T_INITIALIZER;
+  printf ("please answer each space to fill resource data\n");
+  res_list_t* list = &resources;
+  {
+    res_node_t *head;
+    res_node_t *it;
+    printf ("\nresource id ");
+    int id = INVALID_ID;
+    bool found = false;
+    if (list->head == NULL)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("IDs must be positive integers\nplease input a valid ID\n");
+        }
+      }
+      found = true;
+    }
+    while (!found)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("IDs must be positive integers\nplease input a valid ID\n");
+        }
+      }
+      head = list->head;
+      it = head;
+      while (it != NULL)
+      {
+        if (id == it->resource.id)
+        {
+          found = true;
+          break;
+        }
+        it = it->next;
+      }
+      if (!found)
+      {
+        found = true;
+      }
+      else
+      {
+        printf ("\nplease input an unused task ID\n");
+        found = false;
+      }
+    } /* while (!found) */
+    r.id = id;
+  }
+  {
+    char const *msg_template = "name (must be under %lu characters): ";
+    r.name = prompt_input_name (msg_template);
+  }
+  {
+    printf ("capacity ");
+    r.capacity = prompt_input_int ();
+  }
+  {
+    printf ("available amount ");
+    r.available_amount = prompt_input_int ();
+  }
+  {
+    r.in_charge = prompt_task_incharge ();
+  }
+  res_list_push (list, r);
+}
+
+//function to remove a resource
+
+void interactive_resource_remove (void)
+{
+  if (resources.head == NULL)
+  {
+    printf ("\nNo resources yet\n\n");
+    return;
+  }
+  interactive_resource_list ();
+  res_list_t* list = &resources;
+  {
+    res_node_t *head = list->head;
+    res_node_t *it = head;
+    printf ("\nresource id to delete ");
+    int id = INVALID_ID;
+    bool found = false;
+    while ((it != NULL) && !found)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("IDs must be positive integers\nplease input a valid ID\n");
+        }
+      }
+      head = list->head;
+      it = head;
+      while (it != NULL)
+      {
+        if (id == it->resource.id)
+        {
+          found = true;
+          break;
+        }
+        it = it->next;
+      }
+      if ((it == NULL) || !found)
+      {
+        printf ("\nplease input an unused task ID\n");
+      }
+    } /* while ((it != NULL) && !found) */
+    res_node_t* next = it->next;
+    res_node_t* prev = it->prev;
+    if (next != NULL)
+    {
+      next->prev = prev;
+    }
+    if (prev != NULL)
+    {
+      prev->next = next;
+    }
+    if (it == list->head)
+    {
+      list->head = next;
+    }
+    if (it == list->tail)
+    {
+      list->tail = prev;
+    }
+    free (it);
+  }
+}
