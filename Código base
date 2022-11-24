@@ -1999,3 +1999,100 @@ void interactive_document_remove (void)
   remove_bst_node (root, root, id);
 }
 
+
+// function to find a BST node with a document given the document's ID
+
+tnode_t* find_document (int id, tnode_t* root)
+{
+  tnode_t* result = NULL;
+  {
+    tnode_t* current = root;
+    while (current != NULL)
+    {
+      doc_t* d = &current->doc;
+      if (id == d->id)
+      {
+        result = current;
+        break;
+      }
+      else
+      {
+        if (id < d->id)
+        {
+          current = current->l;
+        }
+        else
+        {
+          current = current->r;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+//function to find biggest node in a BST subtree
+tnode_t* find_biggest (tnode_t* root)
+{
+  tnode_t* result = root;
+  {
+    tnode_t* current = result;
+    tnode_t* last = result;
+    while (current != NULL)
+    {
+      last = current;
+      current = current->r;
+    }
+    result = last;
+  }
+  return result;
+}
+
+//function to find the parent node to a given id
+ 
+tnode_t* find_parent (tnode_t* root, tnode_t* node)
+{
+  return find_parent_from_id (root, node->doc.id);
+}
+
+//function to find the parent of a node in a BST
+
+tnode_t* find_parent_from_id (tnode_t* root, int id)
+{
+  tnode_t* result = NULL;
+  {
+    tnode_t* current = root;
+    tnode_t* last;
+    while (current != NULL && current->doc.id != id)
+    {
+      last = current;
+      if (id < current->doc.id)
+      {
+        current = current->l;
+      }
+      else
+      {
+        current = current->r;
+      }
+    }
+    result = last;
+  }
+  return result;
+}
+
+//function to get document data
+
+doc_t prompt_doc_data (void)
+{
+  doc_t result = DOC_T_INITIALIZER;
+  {
+    {
+      result.route = prompt_input_route ();
+    }
+    {
+      char const *msg_template = "description (must be under %lu characters): ";
+      result.description = prompt_input_desc (msg_template);
+    }
+  }
+  return result;
+}
