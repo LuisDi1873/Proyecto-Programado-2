@@ -1322,3 +1322,286 @@ task_t* get_task_ref (task_list_t* list)
   }
   return result;
 }
+//function to input a document's data
+
+doc_t
+input_doc (task_t* task_ref)
+{
+  doc_t result = DOC_T_INITIALIZER;
+  {
+    tnode_t* root = &task_ref->docs;
+    {
+      printf ("\ndocument ID ");
+      int id = INVALID_ID;
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      doc_t* d = &root->doc;
+      bool omit_search = (d->id == INVALID_ID);
+      tnode_t* found = NULL;
+      if (!omit_search)
+      {
+        found = find_document (id, root);
+      }
+      while (found != NULL)
+      {
+        printf ("\nplease input an unused document ID\n");
+        while (id == INVALID_ID)
+        {
+          id = prompt_input_int ();
+          if (id == INVALID_ID)
+          {
+            printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+          }
+        }
+        found = find_document (id, root);
+      }
+      result.id = id;
+    }
+    {
+      doc_t d = prompt_doc_data ();
+      d.id = result.id;
+      result = d;
+    }
+    {
+      result.type = task_ref->type;
+    }
+  }
+  return result;
+}
+
+//function to print all docs in a BST
+
+void show_docs (tnode_t* t)
+{
+  printf ("all docs details\n");
+  print_docs_details (t);
+  printf ("task document tree\n");
+  print_docs (t, 0);
+}
+
+//function to input document into task
+
+void input_task_doc (task_t* t, doc_t* new_doc)
+{
+  int id = new_doc->id;
+  tnode_t* root = &t->docs;
+  tnode_t* parent = find_parent_from_id (root, id);
+  doc_t* d = &parent->doc;
+  tnode_t *new = (tnode_t *)malloc (sizeof (*new));
+  new->l = NULL;
+  new->r = NULL;
+  new->doc = *new_doc;
+  if (d->id < id)
+  {
+    parent->r = new;
+  }
+  else
+  {
+    parent->l = new;
+  }
+}
+
+//function to input a document in a task
+
+void interactive_document_input (void)
+{
+  task_list_t* list = &tasks;
+  if (!list->head)
+  {
+    printf ("\nNo tasks yet\n\n");
+    return;
+  }
+  print_list (&tasks);
+  printf ("input ID of task to add document to, ");
+  task_t* task_ref = get_task_ref (list);
+  {
+    tnode_t* docs = &task_ref->docs;
+    if (docs->doc.id != INVALID_ID)
+    {
+      printf ("documents in task\n");
+      show_docs (&task_ref->docs);
+    }
+  }
+  {
+    doc_t new_doc = input_doc (task_ref);
+    if (task_ref->docs.doc.id == INVALID_ID)
+    {
+      task_ref->docs.doc = new_doc;
+      return;
+    }
+    input_task_doc (task_ref, &new_doc);
+  }
+}
+
+//function to show all docs in task's document BST
+
+void interactive_document_list (void)
+{
+  task_list_t* list = &tasks;
+  if (!list->head)
+  {
+    printf ("\nNo tasks yet\n\n");
+    return;
+  }
+  print_list (&tasks);
+  printf ("input ID of task to show its documents, ");
+  task_t* task_ref = get_task_ref (list);
+  tnode_t* docs = &task_ref->docs;
+  if (docs->doc.id == INVALID_ID)
+  {
+    printf ("no documents in task\n");
+    return;
+  }
+  show_docs(docs);
+}
+
+//menu function
+
+void meta_menu (menu_item_t *items, int items_len, bool *loop_close_cond)
+{
+  meta_prompt (items, items_len);
+  int selection;
+  bool valid_selection = false;
+  while (!*loop_close_cond)
+  {
+    selection = prompt_input_int ();
+    while (!valid_selection)
+    {
+      valid_selection =  ((selection >= 1) && (selection <= items_len));
+      if (!valid_selection)
+      {
+        printf ("\ninvalid option, please input a valid option\n\n");
+      }
+    }
+    int item_index = selection - 1;
+    items[item_index].action ();
+    if (!*loop_close_cond)
+    {
+      meta_prompt (items, items_len);
+    }
+  } 
+  *loop_close_cond = false;
+}
+
+//function to insert a task in the list of tasks
+
+void interactive_task_input (void)
+{
+  task_t t = prompt_task_input ();
+  task_list_push (&tasks, t);
+}
+
+// function to close the main menu loop
+
+void main_quit (void)
+{
+  main_close = true;
+}
+
+// auxiliary function to get string representation of task types
+char *
+task_type_str (task_type_t type)
+{
+  switch (type)
+  {
+  case OPERATIVE : return "Operative Task";
+  case APPROVAL  : return "Approval Task";
+  case CONTRACT  : return "Contract Signing";
+  case MANAGEMENT: return "Management Task";
+  case CHANGE    : return "Change";
+  default        : return "INVALID TASK";
+  }
+}
+
+//generic prompt function
+
+void meta_prompt (menu_item_t *items, int items_len)
+{
+  printf ("\nOptions:\n");
+  for (int i = 0; i < items_len; ++i)
+  {
+    printf ("%d: %s\n", i + 1, items[i].msg);
+  }
+  printf ("\nyour selection: ");
+}
+
+//function to close the task input menu loop
+
+void input_task_quit (void)
+{
+  task_input_close = true;
+}
+
+// auxiliary function to input a task's data
+
+task_t prompt_task_input (void)
+{
+  task_t result = TASK_T_INITIALIZER;
+  printf ("please answer each space to fill task data\n");
+  {
+    task_list_t* list = &tasks;
+    task_node_t *head;
+    task_node_t *it;
+    printf ("\ntask id ");
+    int id = INVALID_ID;
+    bool found = false;
+    if (list->head == NULL)
+    {
+      /* list is empty */
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      found = true;
+    }
+    while (!found)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      head = list->head;
+      it = head;
+      while (it != NULL)
+      {
+        if (id == it->task.id)
+        {
+          found = true;
+          break;
+        }
+        it = it->next;
+      }
+      if (!found)
+      {
+        found = true;
+      }
+      else
+      {
+        printf ("\nplease input an unused task ID\n");
+        id = INVALID_ID;
+        found = false;
+      }
+    } /* while (!found) */
+    result.id = id;
+  }
+  {
+    task_t partial = prompt_task_data ();
+    partial.id = result.id;
+    result = partial;
+  }
+  return result;
+}
