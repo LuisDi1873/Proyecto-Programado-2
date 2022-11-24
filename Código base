@@ -934,3 +934,391 @@ void print_paths (int start_vertex, dijkstra_solution_t *s, int* ids_array)
 	}
   printf ("\n");
 }
+
+/* description: function to calculate shortest distances in adjacency matrix
+ * this relates to section 3.5, the shortest task route via dijkstra
+ * params:
+ * @param adjacency: pointer to 2D array in 1D space of adjacency
+ * weights
+ * @param start_vertex: initial task's ID index
+ * @param s: auxiliary structure to store algorithm's data
+ * output: N/A
+ * restrictions: pointer argument must be valid
+ */
+void dijkstra (int* adjacency, int start_vertex, dijkstra_solution_t* s)
+{
+  int num_vertices = s->count;
+  int* added       = (int*)malloc (s->count * sizeof(*added));
+  for (int i = 0; i < num_vertices; ++i)
+  {
+    s->shortest_distances[i] = INT_MAX >> 1;
+    added[i] = 0;
+  }
+  s->shortest_distances[start_vertex] = 0;
+  s->parents[start_vertex] = -1;
+  for (int i = 1; i < num_vertices; ++i)
+  {
+    int nearest_vertex = -1;
+    int shortest_distance = INT_MAX >> 1;
+    for (int vi = 0; vi < num_vertices; ++vi)
+    {
+      if (!added[vi] && s->shortest_distances[vi] < shortest_distance)
+      {
+        nearest_vertex = vi;
+        shortest_distance = s->shortest_distances[vi];
+      }
+    }
+    added[nearest_vertex] = 1;
+    for (int vi = 0; vi < num_vertices; ++vi)
+    {
+      int edge_distance = adjacency[num_vertices*nearest_vertex + vi];
+      if ((edge_distance > 0) && ((shortest_distance + edge_distance) < s->shortest_distances[vi]))
+      {
+        s->parents[vi] = nearest_vertex;
+        s->shortest_distances[vi] = shortest_distance + edge_distance;
+      }
+    }
+  }
+  free (added);
+}
+
+// auxiliary function that get index of array where an ID is stored
+int index_from_id (int id, int* ids_array, int side)
+{
+  int result = -1;
+  for (int i = 0; i < side; ++i)
+  {
+    if (ids_array[i] == id)
+    {
+      result = i;
+      break;
+    }
+  }
+  return result;
+}
+
+/* description: function to print task route through edges
+ * this relates to section 3.5, the shortest task route
+ * params:
+ * @param task_id: ID of initial task in route
+ * output: N/A, prints to stdout
+ * restrictions: will exit early if pointer to task is NULL
+ */
+void interactive_task_edge_route_print (void)
+{
+  if (edges.head == NULL)
+  {
+    printf ("\nNo edges yet\n\n");
+    return;
+  }
+  task_list_t* list = &tasks;
+  print_list (list);
+  printf ("please input initial task ID, ");
+  task_t* initial = get_task_ref (list);
+  {
+    int side = 0;
+    for (task_node_t* t = tasks.head; t != NULL; t = t->next)
+    {
+      side++;
+    }
+    int size = side * side;
+    int* adj_array = (int*)malloc (size * sizeof (*adj_array));
+    int* ids_array = (int*)malloc (side * sizeof (*ids_array));
+    fill_with_number (adj_array, INT_MAX >> 1, size);
+    {
+      int i = 0;
+      for (task_node_t* t = tasks.head; t != NULL; t = t->next, i++)
+      {
+        ids_array[i] = t->task.id;
+      }
+      for (int i = 0; i < side; ++i)
+      {
+        for (int j = 0; j < side; ++j)
+        {
+          for (edge_node_t* en = edges.head; en != NULL; en = en->next)
+          {
+            if (
+                ((ids_array[i] == en->edge.src) && (ids_array[j] == en->edge.dst))
+             || ((ids_array[j] == en->edge.src) && (ids_array[i] == en->edge.dst))
+            )
+            {
+              adj_array[i*side + j] = en->edge.cost;
+              break;
+            }
+          }
+        }
+      }
+      for (int i = 0; i < side; ++i)
+      {
+        adj_array[i*side + i] = 0;
+      }
+      dijkstra_solution_t s = {
+        .parents            = (int*)malloc (side * sizeof(*s.parents)),
+        .shortest_distances = (int*)malloc (side * sizeof(*s.shortest_distances)),
+        .count = side
+      };
+      int index = index_from_id (initial->id, ids_array, side);
+      dijkstra (adj_array, index, &s);
+      print_paths (index, &s, ids_array);
+      free (s.parents);
+      free (s.shortest_distances);
+    }
+    free (ids_array);
+    free (adj_array);
+  }
+}
+
+//auxiliary function to find the index of the lowest element in mst_set array
+int min_key (int* costs, int* mst_set, int side)
+{
+  int min = INT_MAX;
+  int min_index;
+  for (int i = 0; i < side; i++)
+  {
+    if (mst_set[i] == 0 && costs[i] < min)
+    {
+      min = costs[i];
+      min_index = i;
+    }
+  }
+  return min_index;
+}
+
+//auxiliary function to print minimal spanning tree
+
+void print_mst (int* parents, int* adj_array, int side, int* ids_array)
+{
+  printf ("Source\tDestination\tWeight\n");
+  for (int i = 1; i < side; i++)
+  {
+    printf ("%d\t%d\t\t%d\n",
+      ids_array[parents[i]], ids_array[i], adj_array[i*side + parents[i]]
+    );
+  }
+}
+
+//function to print task graph minimum spanning tree
+
+void interactive_task_mst_print (void)
+{
+  if (edges.head == NULL)
+  {
+    printf ("\nNo edges yet\n\n");
+    return;
+  }
+  int side = 0;
+  for (task_node_t* t = tasks.head; t != NULL; t = t->next)
+  {
+    side++;
+  }
+  int size = side * side;
+  int* adj_array = (int*)malloc (size * sizeof(*adj_array));
+  int* parents = (int*)malloc (side * sizeof(*parents));
+  int* costs = (int*)malloc (side * sizeof(*costs));
+  int* mst_set = (int*)malloc (side * sizeof(*mst_set));
+  int* ids_array = (int*)malloc (side * sizeof (*ids_array));
+  for (int i = 0; i < side; ++i)
+  {
+    costs[i] = INT_MAX;
+    mst_set[i] = 0;
+    parents[i] = 0;
+  }
+  int i = 0;
+  for (task_node_t* t = tasks.head; t != NULL; t = t->next, i++)
+  {
+    ids_array[i] = t->task.id;
+  }
+  for (int i = 0; i < side; ++i)
+  {
+    for (int j = 0; j < side; ++j)
+    {
+      for (edge_node_t* en = edges.head; en != NULL; en = en->next)
+      {
+        if (
+            ((ids_array[i] == en->edge.src) && (ids_array[j] == en->edge.dst))
+          || ((ids_array[j] == en->edge.src) && (ids_array[i] == en->edge.dst))
+        )
+        {
+          adj_array[i*side + j] = en->edge.cost;
+          break;
+        }
+      }
+    }
+  }
+  costs[0] = 0;
+  parents[0] = -1;
+  for (int i = 0; i < side - 1; ++i)
+  {
+    int u = min_key (costs, mst_set, side);
+    mst_set[u] = 1;
+    for (int v = 0; v < side; ++v)
+    {
+      if (adj_array[u*side + v] && mst_set[v] == 0 && adj_array[u*side + v] < costs[v])
+      {
+        parents[v] = u;
+        costs[v] = adj_array[u*side + v];
+      }
+    }
+  }
+  print_mst (parents, adj_array, side, ids_array);
+  free (mst_set);
+  free (costs);
+  free (parents);
+  free (adj_array);
+}
+
+//auxiliary function to update type of document in a task
+void update_task_docs_aux (tnode_t* t, int type)
+{
+  if (t == NULL)
+  {
+    return;
+  }
+  t->doc.type = type;
+  tnode_t* r = t->r;
+  tnode_t* l = t->l;
+  update_task_docs_aux (r, type);
+  update_task_docs_aux (l, type);
+}
+
+//function to update type of every document in a task
+void update_task_docs (task_t* t)
+{
+  if (t == NULL)
+  {
+    return;
+  }
+  update_task_docs_aux (&t->docs, t->type);
+}
+
+//function to print all documents in a BST
+
+void print_docs_details (tnode_t* t)
+{
+  if (t == NULL)
+  {
+    return;
+  }
+  print_docs_details (t->r);
+  print_doc (&t->doc);
+  printf ("\n");
+  print_docs_details (t->l);
+}
+
+//function to fill list with tasks
+
+void test_populate_list (task_list_t* list)
+{
+  for (int i = 0; i < 0x4; ++i)
+  {
+    task_t t = {
+      .id = i,
+      .description = { "" },
+      .type = INVALID_TASK - 1 - i,
+      .effort = 2,
+      .time = 35,
+      .in_charge = { "" }
+    };
+    task_list_push (list, t);
+  }
+}
+
+void print_last_task (task_t *t)
+{
+  meta_print_task (t, "", "  ");
+}
+
+//function to input a person in charge
+
+incharge_t prompt_task_incharge (void)
+{
+  incharge_t result = INCHARGE_T_INITIALIZER;
+  char const *msg_template
+      = "Person in charge (must be under %lu characters): ";
+  char person_buffer[sizeof (result) + 1] = BUF_INITIALIZER;
+  printf (msg_template, sizeof (result));
+  bool loop_cond = true;
+  while (loop_cond && fgets (person_buffer, sizeof (person_buffer), stdin))
+  {
+    char *newline = strchr (person_buffer, '\n');
+    if (newline == NULL)
+    {
+      for (int c = getchar (); c != EOF && c != '\n'; c = getchar ())
+        ;
+      printf (msg_template, sizeof (result));
+      memset (person_buffer, 0, sizeof (person_buffer));
+    }
+    else
+    {
+      int len = newline - person_buffer;
+      memcpy (result.data, person_buffer, len);
+      loop_cond = false;
+    }
+  } 
+  return result;
+}
+
+// function to get a task node from a valid task ID
+
+task_node_t*
+get_task_node (task_t* t, task_list_t* list)
+{
+  task_node_t* result = NULL;
+  {
+    task_node_t* it = list->head;
+    while (it != NULL)
+    {
+      if (&it->task == t)
+      {
+        break;
+      }
+      it = it->next;
+    }
+    result = it;
+  }
+  return result;
+}
+
+// function to get a pointer to a task in a list
+
+task_t* get_task_ref (task_list_t* list)
+{
+  task_t* result = NULL;
+  {
+    task_node_t *it = list->head;
+    bool valid_id = false;
+    int id = INVALID_ID;
+    while (!valid_id)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      {
+        task_node_t *head = NULL;
+        head = list->head;
+        it = head;
+        while (it != NULL)
+        {
+          if (id == it->task.id)
+          {
+            valid_id = true;
+            result = &it->task;
+            break;
+          }
+          it = it->next;
+        }
+        if (!valid_id)
+        {
+          printf ("\nplease input a valid task ID\n");
+          id = INVALID_ID;
+        }
+      }
+    }
+  }
+  return result;
+}
