@@ -699,3 +699,238 @@ void clear_task_list (task_list_t* list)
   list->head = NULL;
   list->tail = NULL;
 }
+
+void
+clear_res_list (res_list_t* list)
+{
+  if (list == NULL)
+  {
+    return;
+  }
+  res_node_t *head = list->head;
+  res_node_t *it = head;
+  res_node_t *tmp;
+  while (it != NULL)
+  {
+    tmp = it->next;
+    free (it);
+    it = tmp;
+  }
+  list->head = NULL;
+  list->tail = NULL;
+}
+
+void clear_edge_list (edge_list_t* list)
+{
+  if (list == NULL)
+  {
+    return;
+  }
+  edge_node_t *head = list->head;
+  edge_node_t *it = head;
+  edge_node_t *tmp;
+  while (it != NULL)
+  {
+    tmp = it->next;
+    free (it);
+    it = tmp;
+  }
+  list->head = NULL;
+  list->tail = NULL;
+}
+
+void clear_lists (void)
+{
+  clear_task_list (&tasks);
+  clear_res_list (&resources);
+  clear_edge_list (&edges);
+}
+
+
+//inserts a task in the list of tasks
+void task_list_push (task_list_t* list, task_t t)
+{
+  if (list == NULL)
+  {
+    fprintf (stderr, "ERROR: invalid list\n");
+    return;
+  }
+  task_node_t *new = (task_node_t *)malloc (sizeof (*new));
+  list->size++;
+  new->task = t;
+  new->next = NULL;
+  new->prev = NULL;
+  if (list->tail == NULL)
+  {
+    list->head = new;
+    list->tail = new;
+  }
+  else
+  {
+    list->tail->next = new;
+    new->prev = list->tail;
+    list->tail = new;
+  }
+}
+
+// function to validate if the task has been visited
+bool has_been_visited (task_t const* const t, task_list_t* list)
+{
+  bool result = false;
+  {
+    task_node_t* it = list->head;
+    while (it != NULL)
+    {
+      if (t == &it->task)
+      {
+        result = true;
+        break;
+      }
+      it = it->next;
+    }
+  }
+  return result;
+}
+
+//inserts a resource in the list of resources
+void res_list_push (res_list_t* list, resource_t r)
+{
+  if (list == NULL)
+  {
+    fprintf (stderr, "ERROR: invalid list\n");
+    return;
+  }
+  res_node_t *new = (res_node_t *)malloc (sizeof (*new));
+  new->resource = r;
+  new->next = NULL;
+  new->prev = NULL;
+  if (list->tail == NULL)
+  {
+    list->head = new;
+    list->tail = new;
+  }
+  else
+  {
+    list->tail->next = new;
+    new->prev = list->tail;
+    list->tail = new;
+  }
+}
+
+//inserts an edge in the list of edges
+
+void edge_list_push (edge_list_t* list, edge_t e)
+{
+  if (list == NULL)
+  {
+    fprintf (stderr, "ERROR: invalid list\n");
+    return;
+  }
+  if (in_edge_list (&e, list))
+  {
+    printf ("Edge already exists\n");
+    return;
+  }
+  edge_node_t *new = (edge_node_t *)malloc (sizeof (*new));
+  new->edge = e;
+  new->next = NULL;
+  new->prev = NULL;
+  if (list->tail == NULL)
+  {
+    list->head = new;
+    list->tail = new;
+  }
+  else
+  {
+    list->tail->next = new;
+    new->prev = list->tail;
+    list->tail = new;
+  }
+}
+
+//function to print a task's data
+void meta_print_task (task_t *t, char *header, char *indent)
+{
+  printf ("TASK:\n");
+  printf ("%sid: %d\n", indent, t->id);
+  printf ("%sdescription: \"%s\"\n", indent, t->description.data);
+  printf ("%stype: %s\n", indent, task_type_str (t->type));
+  printf ("%seffort: %d\n", indent, t->effort);
+  printf ("%stime: %d\n", indent, t->time);
+  printf ("%sin charge: \"%s\"\n", indent, t->in_charge.data);
+}
+
+//function to print a resources's data
+void print_resource (resource_t* r)
+{
+  printf ("Resource:\n");
+  printf ("id: %d\n", r->id);
+  printf ("name: \"%s\"\n", r->name.data);
+  printf ("type: %s\n", task_type_str (r->type));
+  printf ("capacity: %d\n", r->capacity);
+  printf ("available amount: %d\n", r->available_amount);
+  printf ("in charge: \"%s\"\n", r->in_charge.data);
+}
+
+//function to print an edge's data
+
+void print_edge (edge_t* e)
+{
+  printf ("(%d) --|%d|-->(%d)\n", e->src, e->cost, e->dst);
+}
+
+/* description: function to print a task's data, using '*' and '|' has header
+ * and indent respectively, for printing task
+ * params:
+ * @param t: pointer to task_t structure pointing to task to print
+ * output: N/A, prints to stdout
+ * restrictions: will exit early if pointer to task is NULL
+ */
+void print_task (task_t *t)
+{
+  if (t == NULL)
+  {
+    return;
+  }
+  meta_print_task (t, " ", " ");
+}
+
+//auxiliary function to fill an integer array with a number
+
+ void fill_with_number (int* arr, int n, size_t count)
+{
+  for (size_t i = 0; i < count; ++i)
+  {
+    arr[i] = n;
+  }
+}
+
+//auxiliary function to print 1 of all shortest paths
+ void print_path (int current_vertex, int* parents, int limit, int* ids_array)
+{
+  if (current_vertex == -1)
+  {
+    return;
+  }
+  int next_vertex = parents[current_vertex];
+  print_path (next_vertex, parents, limit, ids_array);
+  printf (" -> %d", ids_array[current_vertex]);
+}
+
+//auxiliary function to print shortest paths
+void print_paths (int start_vertex, dijkstra_solution_t *s, int* ids_array)
+{
+	int nVertices = s->count;
+  printf ("Vertex\t\tDistance\tPath");
+	for (int vertex_index = 0; vertex_index < nVertices; vertex_index++)
+  {
+		if (vertex_index != start_vertex)
+    {
+      printf ("\n%d -> ", ids_array[start_vertex]);
+      printf ("%d\t\t", ids_array[vertex_index]);
+      printf ("%d\t\t", s->shortest_distances[vertex_index]);
+			print_path (vertex_index, s->parents, s->count, ids_array);
+		}
+	}
+  printf ("\n");
+}
