@@ -1605,3 +1605,396 @@ task_t prompt_task_input (void)
   }
   return result;
 }
+
+// function to print all tasks
+void interactive_task_list (void)
+{
+  if (tasks.head == NULL)
+  {
+    printf ("\nNo tasks yet\n\n");
+  }
+  print_list (&tasks);
+}
+
+//function to edit task's data
+
+void interactive_task_edit (void)
+{
+  task_list_t* list = &tasks;
+  if (!list->head)
+  {
+    printf ("\nNo tasks yet\n\n");
+    return;
+  }
+  print_list (&tasks);
+  printf ("input ID of task to edit, ");
+  task_t* task_ref = get_task_ref (list);
+  printf ("\n\nNow input new task data\n");
+  task_t t = prompt_task_data ();
+  tnode_t tmp;
+  memcpy (&tmp, &task_ref->docs, sizeof(tmp));
+  int id = task_ref->id;
+  *task_ref = t;
+  task_ref->id = id;
+  memcpy(&task_ref->docs, &tmp, sizeof(tmp));
+  update_task_docs (task_ref);
+}
+
+// function to print list of tasks
+
+void print_list (task_list_t* list)
+{
+  if (list == NULL)
+  {
+    return;
+  }
+  task_node_t *head = list->head;
+  task_node_t *it = head;
+  while (it != NULL)
+  {
+    if (it->next == NULL)
+    {
+      print_last_task (&it->task);
+    }
+    else
+    {
+      print_task (&it->task);
+    }
+    it = it->next;
+    if (it != NULL)
+    {
+      printf ("|\n");
+    }
+  } /* while (it != NULL) */
+  printf ("\n\n");
+}
+
+// function to input an integer
+
+int prompt_input_int (void)
+{
+  int result = -1;
+  char int_buf[ID_BUFFER_SIZE] = BUF_INITIALIZER;
+  char const *msg_template = "input integer (must be under %lu digits): ";
+  printf (msg_template, sizeof (int_buf));
+  bool invalid_int_input = false;
+  while (!invalid_int_input && fgets (int_buf, sizeof (int_buf), stdin))
+  {
+    char *newline = strchr (int_buf, '\n');
+    if (newline == NULL)
+    {
+      for (int c = getchar (); c != EOF && c != '\n'; c = getchar ())
+        ;
+      printf (msg_template, sizeof (int_buf));
+    }
+    else
+    {
+      result = atoi (int_buf);
+      invalid_int_input = (result >= 0);
+    }
+    if (!invalid_int_input)
+    {
+      printf (msg_template, sizeof (int_buf));
+    }
+    memset (int_buf, 0, sizeof(int_buf));
+  } 
+  return result;
+}
+
+//auxiliary function to input a task's data
+
+task_t prompt_task_data (void)
+{
+  task_t result = TASK_T_INITIALIZER;
+  {
+    char const *msg_template = "Description (must be under %lu characters): ";
+    desc_t d = prompt_input_desc (msg_template);
+    result.description = d;
+  }
+  {
+    printf ("\ninput task type:\n");
+
+    for (int i = 0; i < INVALID_TASK; ++i)
+    {
+      int display_index = i + 1;
+      printf ("%d: %s\n", display_index, task_type_str (i));
+    }
+    int type = INVALID_TASK;
+    bool valid_type = false;
+    while (!valid_type)
+    {
+      type = prompt_input_int ();
+
+      valid_type = ((type > 0) && (type <= INVALID_TASK));
+      if (!valid_type)
+      {
+        printf ("please input a valid task type\n");
+      }
+    }
+    result.type = type - 1;
+  }
+  {
+    printf ("Effort: ");
+    int effort = prompt_input_int ();
+    result.effort = effort;
+  }
+  {
+    printf ("Time, ");
+    int time = prompt_input_int ();
+    result.time = time;
+  }
+  {
+    result.in_charge = prompt_task_incharge ();
+  }
+  return result;
+}
+
+//function to input a file route
+
+route_t prompt_input_route (void)
+{
+  route_t result = ROUTE_T_INITIALIZER;
+  char route_buf[sizeof (result) + 1] = BUF_INITIALIZER;
+  char const *msg_template = "route (must be under %lu characters): ";
+  printf (msg_template, sizeof (result));
+  bool loop_cond = true;
+  while (loop_cond && fgets (route_buf, sizeof (route_buf), stdin))
+  {
+    char *newline = strchr (route_buf, '\n');
+    if (newline == NULL)
+    {
+      /* input too big, throw away invalid input, show message to user */
+      for (int c = getchar (); c != EOF && c != '\n'; c = getchar ())
+        ;
+      printf (msg_template, sizeof (result));
+      memset (route_buf, 0, sizeof (route_buf));
+    }
+    else
+    {
+      int len = newline - route_buf;
+      memcpy (result.data, route_buf, len);
+      loop_cond = false;
+    }
+  } 
+  return result;
+}
+
+//function to input a description
+desc_t prompt_input_desc (char const *msg_template)
+{
+  desc_t result = DESC_T_INITIALIZER;
+  char desc_buffer[sizeof (result) + 1] = BUF_INITIALIZER;
+  printf (msg_template, sizeof (result));
+  bool loop_cond = true;
+  while (loop_cond && fgets (desc_buffer, sizeof (desc_buffer), stdin))
+  {
+    char *newline = strchr (desc_buffer, '\n');
+    if (newline == NULL)
+    {
+      for (int c = getchar (); c != EOF && c != '\n'; c = getchar ())
+        ;
+      printf (msg_template, sizeof (result));
+      memset (desc_buffer, 0, sizeof (desc_buffer));
+    }
+    else
+    {
+      int len = newline - desc_buffer;
+      memcpy (result.data, desc_buffer, len);
+      loop_cond = false;
+    }
+  }
+  return result;
+}
+
+//function to input a name
+
+name_t prompt_input_name (char const *msg_template)
+{
+  return prompt_input_desc (msg_template);
+}
+
+//function to print a tasks' document BST
+void print_docs (tnode_t* t, int space)
+{
+  if (t == NULL)
+  {
+    return;
+  }
+  space += TNODE_SPACING;
+  print_docs (t->r, space);
+  /* printf ("\n"); */
+  for (int i = TNODE_SPACING; i < space; ++i)
+  {
+    printf (" ");
+  }
+  printf ("%d\n", t->doc.id);
+  print_docs (t->l, space);
+}
+
+// function to interactively edit a document in a task
+void interactive_document_edit (void)
+{
+  task_list_t* list = &tasks;
+  if (!list->head)
+  {
+    printf ("\nNo tasks yet\n\n");
+    return;
+  }
+  print_list (&tasks);
+  printf ("input ID of task with document, ");
+  task_t* task_ref = get_task_ref (list);
+  tnode_t* root = &task_ref->docs;
+  if (root->doc.id == INVALID_ID)
+  {
+    printf ("task has no documents\n");
+    return;
+  }
+  printf ("documents in task\n");
+  show_docs (root);
+  printf ("\ninput ID of document to edit, ");
+  int id = INVALID_ID;
+  while (id == INVALID_ID)
+  {
+    id = prompt_input_int ();
+    if (id == INVALID_ID)
+    {
+      printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+    }
+  }
+  tnode_t* node = find_document (id, root);
+  doc_t* d = &node->doc;
+  while (d == NULL)
+  {
+    printf ("\nplease input an existing document's ID\n");
+    while (id == INVALID_ID)
+    {
+      id = prompt_input_int ();
+      if (id == INVALID_ID)
+      {
+        printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+      }
+    }
+    node = find_document (id, root);
+    d = &node->doc;
+  }
+  *d = prompt_doc_data ();
+  (*d).id = id;
+  (*d).type = task_ref->type;
+}
+
+//function to delete a node in a task's documents BST
+
+void remove_bst_node (tnode_t* mainroot, tnode_t* root, int id)
+{
+  if (mainroot == NULL || root == NULL || id == INVALID_ID)
+  {
+    return;
+  }
+  if (id == root->doc.id)
+  {
+    if (root->l == NULL && root->r == NULL)
+    {
+      if (root == mainroot)
+      {
+        memset (&root->doc, 0, sizeof(root->doc));
+      }
+      else
+      {
+        tnode_t* parent = find_parent (mainroot, root);
+        if (parent->doc.id < root->doc.id)
+        {
+          parent->r = NULL;
+        }
+        else
+        {
+          parent->l = NULL;
+        }
+        free (root);
+      }
+    }
+    else if (root->l == NULL)
+    {
+      tnode_t* tmp = root->r;
+      memcpy (&root->doc, tmp, sizeof(*tmp));
+      free (tmp);
+    }
+    else if (root->r == NULL)
+    {
+      tnode_t* tmp = root->l;
+      memcpy (&root->doc, tmp, sizeof(*tmp));
+      free (tmp);
+    }
+    else
+    {
+      if (root->l->r == NULL)
+      {
+        tnode_t* tmp = root->l;
+        memcpy (&root->doc, &tmp->doc, sizeof(tmp->doc));
+        root->l = tmp->l;
+        free (tmp);
+      }
+      else
+      {
+        tnode_t* big_small = find_biggest (root->l);
+        tnode_t* tmp = big_small;
+        tnode_t* parent = find_parent(root, big_small);
+        memcpy (&root->doc, &tmp->doc, sizeof(tmp->doc));
+        parent->r = big_small->l;
+        free (tmp);
+      }
+    }
+  }
+  else
+  {
+    tnode_t* subtreeroot = find_document (id, root);
+    remove_bst_node (mainroot, subtreeroot, id);
+  }
+}
+
+// function to remove a document in a task
+
+void interactive_document_remove (void)
+{
+  task_list_t* list = &tasks;
+  if (!list->head)
+  {
+    printf ("\nNo tasks yet\n\n");
+    return;
+  }
+  print_list (&tasks);
+  printf ("input ID of task with document, ");
+  task_t* task_ref = get_task_ref (list);
+  tnode_t* root = &task_ref->docs;
+  if (root->doc.id == INVALID_ID)
+  {
+    printf ("task has no documents\n");
+    return;
+  }
+  printf ("documents in task\n");
+  show_docs (root);
+  printf ("\ninput ID of document to remove, ");
+  int id = INVALID_ID;
+  while (id == INVALID_ID)
+  {
+    id = prompt_input_int ();
+    if (id == INVALID_ID)
+    {
+      printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+    }
+  }
+  tnode_t* node = find_document (id, root);
+  while (node == NULL)
+  {
+    printf ("\nplease input an existing document's ID\n");
+    while (id == INVALID_ID)
+    {
+      id = prompt_input_int ();
+      if (id == INVALID_ID)
+      {
+        printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+      }
+    }
+    node = find_document (id, root);
+  }
+  remove_bst_node (root, root, id);
+}
