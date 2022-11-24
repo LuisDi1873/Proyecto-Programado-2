@@ -343,3 +343,160 @@ global_variable edge_list_t edges = {
   .head = NULL,
   .tail = NULL
 };
+
+/*****************************************************************************/
+/* function body definitions */
+/*****************************************************************************/
+
+// check whether an edge has been inserted
+bool in_edge_list (edge_t* e, edge_list_t* list)
+{
+  bool result = false;
+  {
+    edge_node_t *it = list->head;
+    while (it != NULL)
+    {
+      if (it->edge.src == e->src && it->edge.dst == e->dst)
+      {
+        result = true;
+        break;
+      }
+      it = it->next;
+    }
+  }
+  return result;
+}
+
+//convert task representation 
+persist_task_t from_task (task_t* t)
+{
+  persist_task_t result = PERSIST_TASK_T_INITIALIZER;
+  {
+    result.id          = t->id;
+    result.description = t->description;
+    result.type        = t->type;
+    result.effort      = t->effort;
+    result.time        = t->time;
+    result.in_charge   = t->in_charge;
+    result.doc         = t->docs.doc;
+  }
+  return result;
+}
+
+//function to load a task's documents
+void load_task_docs (task_t* t)
+{
+  int doc_id = t->docs.doc.id;
+  if (doc_id == INVALID_ID)
+  {
+    return;
+  }
+  {
+    char task_doc_buf[DOC_PERSISTENCE_BUFFER_SIZE] = BUF_INITIALIZER;
+    char task_filename_template[] = "task_%d.txt";
+    size_t bufsz = sizeof(task_doc_buf);
+    snprintf (task_doc_buf, bufsz, task_filename_template, t->id);
+    FILE* outer_f = fopen (task_doc_buf, "r");
+    if (outer_f != NULL)
+    {
+      int tmpid;
+      size_t bytes_read_outer = fread (&tmpid, sizeof(tmpid), 1, outer_f);
+      while (bytes_read_outer > 0 && !feof (outer_f))
+      {
+        char doc_buf[DOC_PERSISTENCE_BUFFER_SIZE] = BUF_INITIALIZER;
+        char doc_filename_template[] = "task%ddoc%d.txt";
+        size_t bufsz = sizeof(doc_buf);
+        snprintf (doc_buf, bufsz, doc_filename_template, t->id, tmpid);
+        FILE* inner_f = fopen (doc_buf, "r");
+        if (inner_f != NULL)
+        {
+          doc_t load_node;
+          size_t bytes_read = fread (&load_node, sizeof(load_node), 1, inner_f);
+          while (bytes_read > 0 && !feof (inner_f))
+          {
+            input_task_doc (t, &load_node);
+            bytes_read = fread (&load_node, sizeof(load_node), 1, inner_f);
+          }
+          fclose (inner_f);
+        }
+        bytes_read_outer = fread (&tmpid, sizeof(tmpid), 1, outer_f);
+      }
+      fclose (outer_f);
+    }
+  }
+}
+
+//function to convert task representation for runtime
+
+task_t from_persist_task (persist_task_t* t)
+{
+  task_t result = TASK_T_INITIALIZER;
+  {
+    result.id          = t->id;
+    result.description = t->description;
+    result.type        = t->type;
+    result.effort      = t->effort;
+    result.time        = t->time;
+    result.in_charge   = t->in_charge;
+    result.docs.doc    = t->doc;
+    result.docs.l      = NULL;
+    result.docs.r      = NULL;
+  }
+  return result;
+}
+
+//loads data if present to file
+
+void load_persistent_data (void)
+{
+  {
+    task_list_t* list = &tasks;
+    char* file_name = TASKS_PERSISTENCE_FILE;
+    FILE *f = fopen (file_name, "r");
+    if (f != NULL)
+    {
+      persist_task_t t;
+      size_t bytes_read = fread (&t, sizeof (t), 1, f);
+      while (bytes_read > 0 && !feof (f))
+      {
+        task_t mem_task = from_persist_task (&t);
+        load_task_docs (&mem_task);
+        task_list_push (list, mem_task);
+        bytes_read = fread (&t, sizeof (t), 1, f);
+      }
+      fclose (f);
+    }
+  }
+  {
+    res_list_t* list = &resources;
+    char* file_name = RESOURCES_PERSISTENCE_FILE;
+    FILE *f = fopen (file_name, "r");
+    if (f != NULL)
+    {
+      resource_t r;
+      size_t bytes_read = fread (&r, sizeof (r), 1, f);
+      while (bytes_read > 0 && !feof (f))
+      {
+        res_list_push (list, r);
+        bytes_read = fread (&r, sizeof (r), 1, f);
+      }
+      fclose (f);
+    }
+  }
+  {
+    edge_list_t* list = &edges;
+    char* file_name = EDGES_PERSISTENCE_FILE;
+    FILE *f = fopen (file_name, "r");
+    if (f != NULL)
+    {
+      edge_t e;
+      size_t bytes_read = fread (&e, sizeof (e), 1, f);
+      while (bytes_read > 0 && !feof (f))
+      {
+        edge_list_push (list, e);
+        bytes_read = fread (&e, sizeof (e), 1, f);
+      }
+      fclose (f);
+    }
+  }
+}
