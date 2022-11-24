@@ -1998,3 +1998,4 @@ void interactive_document_remove (void)
   }
   remove_bst_node (root, root, id);
 }
+
