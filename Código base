@@ -2236,3 +2236,176 @@ void interactive_resource_remove (void)
     free (it);
   }
 }
+
+void
+interactive_resource_list (void)
+{
+  if (resources.head == NULL)
+  {
+    printf ("\nNo resources yet\n\n");
+    return;
+  }
+  res_node_t *it = resources.head;
+  while (it != NULL)
+  {
+    print_resource (&it->resource);
+    it = it->next;
+  }
+}
+
+
+void
+interactive_edge_list (void)
+{
+  if (edges.head == NULL)
+  {
+    printf ("\nNo edges yet\n\n");
+    return;
+  }
+  edge_node_t *it = edges.head;
+  while (it != NULL)
+  {
+    print_edge (&it->edge);
+    it = it->next;
+  }
+}
+
+
+void
+interactive_edge_input (void)
+{
+  task_list_t* list = &tasks;
+  {
+    /* if head == tail
+     * either list is empty or only one task in list
+     */
+    if (list->head == list->tail)
+    {
+      printf ("\nnot enough tasks to set an edge\n");
+      return;
+    }
+  }
+  printf ("existing tasks\n");
+  print_list (list);
+  int id = INVALID_ID;
+  int srcid;
+  int dstid;
+  task_t* src_task = NULL;
+  task_t* dst_task = NULL;
+  {
+    printf ("input ID of first task, ");
+    task_node_t *it = list->head;
+    bool valid_id = false;
+    while (!valid_id)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      {
+        task_node_t *head = NULL;
+        head = list->head;
+        it = head;
+        while (it != NULL)
+        {
+          if (id == it->task.id)
+          {
+            src_task = &it->task;
+            valid_id = true;
+            break;
+          }
+          it = it->next;
+        }
+        if (!valid_id)
+        {
+          printf ("\nplease input a valid task ID\n");
+          id = INVALID_ID;
+        }
+      }
+    } /* while (!valid_id) */
+    srcid = id;
+    id = INVALID_ID;
+  }
+  {
+    printf ("input ID of second task, ");
+    task_node_t *it = list->head;
+    bool valid_id = false;
+    while (!valid_id)
+    {
+      while (id == INVALID_ID)
+      {
+        id = prompt_input_int ();
+        if (id == INVALID_ID)
+        {
+          printf ("task IDs must be positive integers\nplease input a valid task ID\n");
+        }
+      }
+      {
+        task_node_t *head = NULL;
+        head = list->head;
+        it = head;
+        while (it != NULL)
+        {
+          if (id == it->task.id)
+          {
+            valid_id = true;
+            dst_task = &it->task;
+            break;
+          }
+          it = it->next;
+        }
+        if (id == srcid)
+        {
+          printf ("\ncannot use the same task");
+          valid_id = false;
+        }
+        if (!valid_id)
+        {
+          printf ("\nplease input a valid task ID\n");
+          id = INVALID_ID;
+        }
+      }
+    } /* while (!valid_id) */
+    dstid = id;
+  }
+
+  edge_t new_edge = {
+    .src = srcid,
+    .dst = dstid,
+    .cost = edge_cost
+  };
+  edge_list_t* edge_list = &edges;
+  edge_list_push (edge_list, new_edge);
+  /* add the reverse, to make undirected graph via two directed edges */
+  edge_t rev_edge = {
+    .dst = srcid,
+    .src = dstid,
+    .cost = edge_cost
+  };
+  edge_list_push (edge_list, rev_edge);
+}
+
+/*****************************************************************************/
+/* main function definition */
+/*****************************************************************************/
+int
+main (void)
+{
+  {
+    load_persistent_data ();
+  }
+  {
+    meta_menu (main_items, main_items_len, &main_close);
+  }
+  {
+    persist_data ();
+  }
+  {
+    clear_lists ();
+  }
+  return EXIT_SUCCESS;
+}
